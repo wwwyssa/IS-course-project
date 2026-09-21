@@ -9,5 +9,5 @@
 - Для реализации системы можно использовать:
  - - a. Frontend: React, Angular, Vue, Next JS, JSF, Spring MVC (Thymeleaf или другой шаблонизатор).
  - - b. Backend: основанный на Jakarta EE или Spring MVC
-​​​​​​​ - - c. БД: PostgreSQL
+​ - - c. БД: PostgreSQL
 Составить отчет.
