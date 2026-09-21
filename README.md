@@ -10,4 +10,4 @@
  1. Frontend: React, Angular, Vue, Next JS, JSF, Spring MVC (Thymeleaf или другой шаблонизатор).
  2. Backend: основанный на Jakarta EE или Spring MVC
  3. БД: PostgreSQL
-- Составить отчет.
+- Составить отчет (https://docs.google.com/document/d/1pcsqWzhaHZhKG6agFsOuIaJ5jmtMz5iY/edit?usp=sharing&ouid=106024926439249091982&rtpof=true&sd=true).
