@@ -1,0 +1,120 @@
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+skinparam nodesep 35
+skinparam ranksep 150
+actor "Гость" as Guest
+actor "Владелец животного" as Owner
+actor "Сотрудник санатория" as Staff
+actor "Администратор" as Admin
+actor "Ветеринар" as Vet
+actor "Платёжный сервис" as Payment
+
+Owner --|> Guest
+Admin --|> Staff
+Vet --|> Staff
+
+rectangle "Информационная система санатория для животных" {
+
+  package "Учётная запись и животное" {
+    usecase "Зарегистрироваться" as Register
+    usecase "Войти в систему" as Login
+    usecase "Изменить контактные данные" as Profile
+    usecase "Создать и изменить\nкарточку животного" as Pet
+    usecase "Прикрепить ветеринарные\nдокументы" as Docs
+  }
+
+  package "Проживание и оплата" {
+    usecase "Просмотреть номера\nи услуги" as Catalog
+    usecase "Проверить доступность\nномеров" as Availability
+    usecase "Рассчитать стоимость" as Price
+    usecase "Забронировать проживание" as Book
+    usecase "Продлить проживание" as Extend
+    usecase "Просмотреть бронирования" as Bookings
+    usecase "Оплатить услуги" as Pay
+    usecase "Просмотреть чеки\nи историю платежей" as Receipts
+  }
+
+  package "Уход и наблюдение" {
+    usecase "Просмотреть местоположение\nи статус животного" as Location
+    usecase "Просмотреть историю\nперемещений" as Movement
+    usecase "Просмотреть отчёты\nо состоянии животного" as Reports
+    usecase "Добавить отчёт\nо состоянии животного" as AddReport
+    usecase "Отметить кормление\nили прогулку" as Care
+    usecase "Просмотреть историю\nкормлений" as FeedingHistory
+  }
+
+  package "Питание, процедуры и расписание" {
+    usecase "Просмотреть рационы\nи процедуры" as Services
+    usecase "Выбрать питание\nи указать ограничения" as Diet
+    usecase "Согласовать лечебный\nрацион" as ApproveDiet
+    usecase "Записать животное\nна процедуру или осмотр" as Appointment
+    usecase "Просмотреть расписание" as Schedule
+    usecase "Запросить изменение\nрасписания" as ChangeSchedule
+    usecase "Внести заключение\nи назначения" as Conclusion
+    usecase "Просмотреть заключения\nи рекомендации" as ViewConclusion
+  }
+
+  package "Связь и экстренные случаи" {
+    usecase "Получать уведомления" as Notifications
+    usecase "Обратиться к персоналу" as Chat
+    usecase "Зафиксировать\nэкстренный случай" as Emergency
+    usecase "Уведомить владельца\nоб экстренном случае" as EmergencyNotice
+    usecase "Предоставить согласие\nна срочное лечение" as Consent
+  }
+}
+
+Guest -- Register
+Guest -- Login
+Login ..> Register : <<extend>>
+Guest -- Catalog
+Guest -- Services
+
+Owner -- Profile
+Owner -- Pet
+Owner -- Docs
+Owner -- Book
+Owner -- Extend
+Owner -- Bookings
+Owner -- Pay
+Owner -- Receipts
+Owner -- Location
+Owner -- Movement
+Movement ..> Location : <<include>>
+Owner -- Reports
+Owner -- FeedingHistory
+Owner -- Diet
+Owner -- Appointment
+Owner -- Schedule
+Owner -- ChangeSchedule
+Owner -- ViewConclusion
+Owner -- Notifications
+Owner -- Chat
+Owner -- Consent
+
+Staff -- AddReport
+Staff -- Care
+AddReport ..> Care : <<include>>
+Staff -- Chat
+Staff -- Emergency
+
+Admin -- Bookings
+Admin -- ChangeSchedule
+
+Vet -- ApproveDiet
+Vet -- Conclusion
+Vet -- Emergency
+Vet -- Chat
+
+Payment -- Pay
+
+Book ..> Availability : <<include>>
+Book ..> Price : <<include>>
+Extend ..> Availability : <<include>>
+Emergency ..> EmergencyNotice : <<include>>
+EmergencyNotice ..> Notifications : <<include>>
+Conclusion ..> ViewConclusion : <<include>>
+Appointment ..> Schedule : <<include>>
+Diet ..> ApproveDiet : <<include>>
+Services ..> Diet : <<extend>>
+@enduml
