@@ -1,0 +1,57 @@
+@startuml
+title Диаграмма компонентов ИС «Санаторий для животных»
+top to bottom direction
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam componentStyle uml2
+skinparam packageStyle rectangle
+skinparam nodesep 30
+skinparam ranksep 40
+
+package "Клиентская часть" {
+  component "Интерфейс пользователя (React)" as frontend
+}
+
+component "Веб-сервер" as webServer
+
+package "Серверная часть (Spring Boot)" {
+  component "Сервис авторизации и пользователей" as authService
+  component "Сервис бронирования" as bookingService
+  component "Сервис медицинских услуг" as medicalService
+  component "Сервис оплаты" as paymentService
+}
+
+package "База данных (PostgreSQL)" {
+  database "Схема пользователей" as dbAuth
+  database "Схема бронирований" as dbBooking
+  database "Схема медицины" as dbMedical
+  database "Схема оплаты" as dbPayment
+}
+
+component "Файловое хранилище" as storage
+component "Платёжный сервис" as externalPayment <<external>>
+
+' Связи клиента и веб-сервера
+frontend ..> webServer : HTTP
+
+' Перенаправление запросов от веб-сервера к сервисам
+webServer ..> authService : REST
+webServer ..> bookingService : REST
+webServer ..> medicalService : REST
+webServer ..> paymentService : REST
+
+' Межсервисный вызов
+bookingService ..> paymentService : Передача данных для оплаты
+
+' Связь сервисов с базой данных
+authService ..> dbAuth : JDBC
+bookingService ..> dbBooking : JDBC
+medicalService ..> dbMedical : JDBC
+paymentService ..> dbPayment : JDBC
+
+' Хранилище и внешний сервис
+medicalService ..> storage : Сохранение медиафайлов и отчётов
+paymentService ..> externalPayment : HTTPS API
+frontend ..> externalPayment : Оплата
+
+@enduml
