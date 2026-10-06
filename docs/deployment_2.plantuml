@@ -1,0 +1,77 @@
+@startuml
+title Диаграмма развёртывания и артефактов ИС «Санаторий для животных» (Микросервисы)
+left to right direction
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam nodeStyle rectangle
+
+node "Устройство пользователя" as client <<device>> {
+  node "Веб-браузер" as browser <<executionEnvironment>> {
+    artifact "Клиентское приложение React\n(app.bundle.js / index.html)" as frontend <<artifact>>
+  }
+}
+
+node "Сервер" as helios <<device>> {
+  
+  node "Веб-сервер" as nginx <<executionEnvironment>> {
+    artifact "Статические файлы React SPA\n(/var/www/dist)" as staticFiles <<artifact>>
+  }
+
+  node "JVM" as jvm <<executionEnvironment>> {
+    node "Auth & User Service\n" as authNode <<executionEnvironment>> {
+      artifact "auth-service.jar" as authJar <<artifact>>
+    }
+    node "Booking Service\n" as bookingNode <<executionEnvironment>> {
+      artifact "booking-service.jar" as bookingJar <<artifact>>
+    }
+    node "Payment Service\n" as paymentNode <<executionEnvironment>> {
+      artifact "payment-service.jar" as paymentJar <<artifact>>
+    }
+    node "Medical Service\n" as medicalNode <<executionEnvironment>> {
+      artifact "medical-service.jar" as medicalJar <<artifact>>
+    }
+  }
+
+  database "PostgreSQL DBMS" as dbNode {
+    database "schema_auth" as dbAuth
+    database "schema_booking" as dbBooking
+    database "schema_payment" as dbPayment
+    database "schema_medical" as dbMedical
+  }
+
+  folder "Файловое хранилище" as storage {
+    artifact "Фото- и видеоотчёты\nМедицинские документы" as files <<artifact>>
+  }
+}
+
+node "Инфраструктура платёжного провайдера" as paymentHost <<device>> {
+  node "Платёжный сервис" as paymentGateway <<executionEnvironment>>
+}
+
+' Связи клиента с Nginx
+browser -- staticFiles : HTTP \n
+browser -- nginx : HTTP \n
+
+' Проксирование запросов от Nginx к микросервисам
+nginx -- authNode : HTTP
+nginx -- bookingNode : HTTP
+nginx -- paymentNode : HTTP
+nginx -- medicalNode : HTTP
+
+' Межсервисное взаимодействие (REST / Feign)
+bookingNode ..> paymentNode : REST / Feign Client\n(Создание платежа для брони)
+
+' Связи микросервисов с их базами данных
+authJar -- dbAuth : JDBC / TCP
+bookingJar -- dbBooking : JDBC / TCP
+paymentJar -- dbPayment : JDBC / TCP
+medicalJar -- dbMedical : JDBC / TCP
+
+' Файловое хранилище
+medicalJar ..> files : Чтение и запись файлов
+
+' Взаимодействие с платежным шлюзом
+paymentJar -- paymentGateway : HTTPS API\nСоздание платежа / Webhook
+browser -- paymentGateway : HTTPS\nОплата на стороне провайдера
+
+@enduml
