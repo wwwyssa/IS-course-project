@@ -7,14 +7,14 @@ skinparam nodeStyle rectangle
 
 node "Устройство пользователя" as client <<device>> {
   node "Веб-браузер" as browser <<executionEnvironment>> {
-    artifact "Клиентское приложение React\n(app.bundle.js / index.html)" as frontend <<artifact>>
+    artifact "Клиентское приложение React" as frontend <<artifact>>
   }
 }
 
 node "Сервер" as helios <<device>> {
   
   node "Веб-сервер" as nginx <<executionEnvironment>> {
-    artifact "Статические файлы React SPA\n(/var/www/dist)" as staticFiles <<artifact>>
+    artifact "Статические файлы React SPA" as staticFiles <<artifact>>
   }
 
   node "JVM" as jvm <<executionEnvironment>> {
