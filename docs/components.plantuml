@@ -1,0 +1,57 @@
+﻿@startuml
+title Диаграмма компонентов ИС «Санаторий для животных»
+top to bottom direction
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam componentStyle uml2
+skinparam packageStyle rectangle
+skinparam nodesep 40
+skinparam ranksep 50
+
+package "Клиентское приложение (React)" {
+  component "Интерфейс пользователя\nи API-клиент" as frontend
+}
+
+package "Серверное приложение (Java, Spring Boot)" {
+  package "Входные адаптеры" {
+    component "Фильтр безопасности" as security
+    component "REST-контроллеры" as controllers
+    security ..> controllers : Передача запроса
+  }
+
+  package "Прикладное ядро" {
+    interface "Интерфейсы сценариев" as inbound
+    component "Прикладные сервисы\nПрофили и животные, бронирование,\nпитание и расписание, уход и отчёты,\nчат и уведомления, оплата" as services
+    component "Доменная модель\nСущности и бизнес-правила" as domain
+    interface "Репозитории" as dataPort
+    interface "Хранилище файлов" as filePort
+    interface "Платёжный шлюз" as paymentPort
+
+    services ..|> inbound
+    services ..> domain
+    services ..> dataPort
+    services ..> filePort
+    services ..> paymentPort
+  }
+
+  package "Выходные адаптеры" {
+    component "Адаптер базы данных" as persistence
+    component "Адаптер файловой системы" as fileAdapter
+    component "Клиент платёжного API" as paymentAdapter
+  }
+}
+
+database "PostgreSQL" as db
+component "Файловое хранилище" as storage
+component "Платёжный сервис" as payment <<external>>
+
+frontend ..> security : HTTP / JSON
+controllers ..> inbound
+persistence ..|> dataPort
+fileAdapter ..|> filePort
+paymentAdapter ..|> paymentPort
+persistence ..> db : JDBC / TCP
+fileAdapter ..> storage : Чтение и запись
+paymentAdapter ..> payment : HTTPS API
+frontend ..> payment : HTTPS\nПлатёжная страница
+@enduml

@@ -1,0 +1,38 @@
+@startuml
+title Диаграмма развёртывания ИС «Санаторий для животных»
+left to right direction
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam nodeStyle rectangle
+
+node "Устройство пользователя" as client <<device>> {
+  node "Веб-браузер" as browser <<executionEnvironment>> {
+    artifact "Клиентское приложение React" as frontend
+  }
+}
+
+node "Сервер" as server <<device>> {
+  node "JVM" as jvm <<executionEnvironment>> {
+    node "Spring Boot\nВстроенный веб-сервер" as app <<executionEnvironment>> {
+      artifact "sanatorium.jar\n Spring Boot" as backend
+    }
+  }
+  folder "Файловое хранилище" as storage {
+    artifact "Фото- и видеоотчёты\nВетеринарные документы" as files
+  }
+
+  database "База данных санатория" as db
+  
+}
+
+node "Инфраструктура платёжного провайдера" as paymentHost <<device>> {
+  node "Платёжный сервис" as payment <<executionEnvironment>>
+}
+
+browser -- app : HTTP
+app -- db : JDBC / TCP\nЧтение и запись данных
+backend ..> files : Чтение и запись файлов
+app -- payment : HTTPS API\nСоздание платежей и проверка статуса
+browser -- payment : HTTPS\nПлатёжная страница провайдера
+
+@enduml
