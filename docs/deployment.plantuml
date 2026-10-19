@@ -21,9 +21,7 @@ node "Устройство пользователя" as client <<device>> #E8F4E
 }
 
 node "Сервер приложения" as helios <<device>> {
-  node "Веб-сервер\nСтатика и маршрутизация API" as nginx <<executionEnvironment>> #E8F4ED {
-    artifact "Сборка React" as staticFiles
-  }
+  node "Веб-сервер\nnginx" as nginx <<executionEnvironment>> #E8F4ED 
 
   package "Микросервисы · отдельные Java-процессы" as services {
     together {
@@ -51,8 +49,8 @@ node "Сервер приложения" as helios <<device>> {
     }
   }
 
-  folder "Каталог на диске\n/data/sanatorium" as storage #EAF2F8 {
-    artifact "Фото, видео и документы" as files
+  node "SeaweedFS\nОтдельный процесс · S3 API" as storage <<executionEnvironment>> #EAF2F8 {
+    storage "Постоянные данные SeaweedFS\nОбъекты и служебные метаданные" as objectData
   }
   node "Consul Agent (server)\nРеестр сервисов" as consul <<executionEnvironment>> #EAF2F8
 }
@@ -78,8 +76,8 @@ paymentNode ..> bookingNode : REST · результат
 authNode -down-> dbAuth : JDBC / TCP
 bookingNode -down-> dbBooking : JDBC / TCP
 paymentNode -down-> dbPayment : JDBC / TCP
-medicalNode -down-> dbMedical : JDBC / TCP
-medicalNode --> storage : Файловый ввод-вывод
+medicalNode -down-> dbMedical : JDBC / TCP\nМетаданные, bucket и object_key
+medicalNode --> storage : S3 API / HTTP\nЗагрузка и получение объектов
 
 ' Общая связь заменяет четыре повторяющиеся линии регистрации.
 services ..> consul : HTTP API\nРегистрация и поиск

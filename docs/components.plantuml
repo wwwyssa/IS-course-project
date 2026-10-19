@@ -16,7 +16,7 @@ skinparam NoteBackgroundColor #FFFBEA
 hide stereotype
 
 component "React\nИнтерфейс пользователя" as frontend #E8F4ED
-component "Веб-сервер\nМаршрутизация API и выдача React" as webServer #E8F4ED
+component "Веб-сервер\n nginx" as webServer #E8F4ED
 
 package "Микросервисы · Spring Boot" as backend {
   together {
@@ -36,7 +36,7 @@ package "Хранение данных" as data {
     database "payment_db" as dbPayment
     database "medical_db" as dbMedical
   }
-  folder "Каталог файлов\nФото, видео, документы" as storage
+  component "SeaweedFS\nS3-совместимое хранилище\nФото, видео, документы" as storage #EAF2F8
 }
 
 package "Внешние системы" as external {
@@ -57,8 +57,8 @@ paymentService ..> bookingService : Результат оплаты
 authService -down-> dbAuth : JDBC
 bookingService -down-> dbBooking : JDBC
 paymentService -down-> dbPayment : JDBC
-medicalService -down-> dbMedical : JDBC
-medicalService --> storage : Файловый ввод-вывод
+medicalService -down-> dbMedical : JDBC\nМетаданные, bucket и object_key
+medicalService --> storage : S3 API / HTTP\nЗагрузка и получение объектов
 
 authService --> telegram : OIDC / HTTPS
 paymentService --> externalPayment : HTTPS API
