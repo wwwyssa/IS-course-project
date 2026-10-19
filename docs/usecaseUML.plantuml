@@ -1,4 +1,5 @@
 @startuml
+title ИС «Санаторий для животных» — модель прецедентов
 left to right direction
 skinparam packageStyle rectangle
 skinparam nodesep 35
@@ -9,8 +10,12 @@ actor "Сотрудник санатория" as Staff
 actor "Администратор" as Admin
 actor "Ветеринар" as Vet
 actor "Платёжный сервис" as Payment
+actor "Telegram\nПровайдер входа" as Telegram
+actor "Авторизованный пользователь" as User
 
 Owner --|> Guest
+Owner --|> User
+Staff --|> User
 Admin --|> Staff
 Vet --|> Staff
 
@@ -19,9 +24,13 @@ rectangle "Информационная система санатория для
   package "Учётная запись и животное" {
     usecase "Зарегистрироваться" as Register
     usecase "Войти в систему" as Login
+    usecase "Войти через Telegram" as TelegramLogin
+    usecase "Выйти из системы" as Logout
     usecase "Изменить контактные данные" as Profile
     usecase "Создать и изменить\nкарточку животного" as Pet
     usecase "Прикрепить ветеринарные\nдокументы" as Docs
+    usecase "Просмотреть и скачать\nдокументы животного" as ViewDocs
+    usecase "Указать доверенных лиц\nи экстренные контакты" as Contacts
   }
 
   package "Проживание и оплата" {
@@ -31,8 +40,15 @@ rectangle "Информационная система санатория для
     usecase "Забронировать проживание" as Book
     usecase "Продлить проживание" as Extend
     usecase "Просмотреть бронирования" as Bookings
+    usecase "Отменить бронирование" as CancelBooking
+    usecase "Оформить заселение" as CheckIn
+    usecase "Завершить проживание" as CheckOut
     usecase "Оплатить услуги" as Pay
     usecase "Просмотреть чеки\nи историю платежей" as Receipts
+    usecase "Обработать подтверждение\nплатежа от провайдера" as PaymentResult
+    usecase "Просмотреть статус оплаты" as PaymentStatus
+    usecase "Скачать договоры и акты" as Contracts
+    usecase "Применить промокод\nили бонусы" as Discount
   }
 
   package "Уход и наблюдение" {
@@ -40,17 +56,21 @@ rectangle "Информационная система санатория для
     usecase "Просмотреть историю\nперемещений" as Movement
     usecase "Просмотреть отчёты\nо состоянии животного" as Reports
     usecase "Добавить отчёт\nо состоянии животного" as AddReport
+    usecase "Прикрепить фото\nи видео к отчёту" as UploadMedia
+    usecase "Обновить местоположение\nи статус животного" as UpdateLocation
     usecase "Отметить кормление\nили прогулку" as Care
     usecase "Просмотреть историю\nкормлений" as FeedingHistory
   }
 
   package "Питание, процедуры и расписание" {
     usecase "Просмотреть рационы\nи процедуры" as Services
+    usecase "Просмотреть карточки\nветеринаров и время приёма" as Vets
     usecase "Выбрать питание\nи указать ограничения" as Diet
     usecase "Согласовать лечебный\nрацион" as ApproveDiet
     usecase "Записать животное\nна процедуру или осмотр" as Appointment
     usecase "Просмотреть расписание" as Schedule
     usecase "Запросить изменение\nрасписания" as ChangeSchedule
+    usecase "Рассмотреть запрос\nи изменить расписание" as ReviewSchedule
     usecase "Внести заключение\nи назначения" as Conclusion
     usecase "Просмотреть заключения\nи рекомендации" as ViewConclusion
   }
@@ -58,29 +78,44 @@ rectangle "Информационная система санатория для
   package "Связь и экстренные случаи" {
     usecase "Получать уведомления" as Notifications
     usecase "Обратиться к персоналу" as Chat
+    usecase "Просмотреть историю\nпереписки" as ChatHistory
     usecase "Зафиксировать\nэкстренный случай" as Emergency
     usecase "Уведомить владельца\nоб экстренном случае" as EmergencyNotice
     usecase "Предоставить согласие\nна срочное лечение" as Consent
+    usecase "Просмотреть хронологию\nэкстренного случая" as EmergencyHistory
   }
 }
 
 Guest -- Register
 Guest -- Login
-Login ..> Register : <<extend>>
+Guest -- TelegramLogin
+Telegram -- TelegramLogin
+TelegramLogin --|> Login
+User -- Login
+User -- TelegramLogin
+User -- Logout
 Guest -- Catalog
 Guest -- Services
+Guest -- Vets
+Guest -- Availability
+Guest -- Price
 
 Owner -- Profile
 Owner -- Pet
 Owner -- Docs
+Owner -- ViewDocs
+Owner -- Contacts
 Owner -- Book
 Owner -- Extend
 Owner -- Bookings
+Owner -- CancelBooking
 Owner -- Pay
 Owner -- Receipts
+Owner -- PaymentStatus
+Owner -- Contracts
+Owner -- Discount
 Owner -- Location
 Owner -- Movement
-Movement ..> Location : <<include>>
 Owner -- Reports
 Owner -- FeedingHistory
 Owner -- Diet
@@ -91,15 +126,23 @@ Owner -- ViewConclusion
 Owner -- Notifications
 Owner -- Chat
 Owner -- Consent
+Owner -- EmergencyHistory
+Owner -- ChatHistory
 
 Staff -- AddReport
 Staff -- Care
-AddReport ..> Care : <<include>>
+Staff -- UploadMedia
+Staff -- UpdateLocation
+Staff -- ChatHistory
+Staff -- ViewDocs
 Staff -- Chat
 Staff -- Emergency
 
 Admin -- Bookings
-Admin -- ChangeSchedule
+Admin -- ReviewSchedule
+Admin -- CheckIn
+Admin -- CheckOut
+Admin -- CancelBooking
 
 Vet -- ApproveDiet
 Vet -- Conclusion
@@ -107,14 +150,26 @@ Vet -- Emergency
 Vet -- Chat
 
 Payment -- Pay
+Payment -- PaymentResult
 
 Book ..> Availability : <<include>>
 Book ..> Price : <<include>>
 Extend ..> Availability : <<include>>
+Extend ..> Price : <<include>>
+Discount ..> Price : <<extend>>\n[указан промокод или выбраны бонусы]
+UploadMedia ..> AddReport : <<extend>>\n[добавлены вложения]
 Emergency ..> EmergencyNotice : <<include>>
 EmergencyNotice ..> Notifications : <<include>>
-Conclusion ..> ViewConclusion : <<include>>
 Appointment ..> Schedule : <<include>>
-Diet ..> ApproveDiet : <<include>>
-Services ..> Diet : <<extend>>
+
+legend bottom left
+  include — обязательная часть сценария; extend — условное дополнение.
+  Вход через Telegram — вариант входа; при первом входе создаётся учётная запись владельца.
+  Доступ к данным животных и файлам ограничивается правами пользователя.
+  Согласование лечебного рациона — отдельное действие ветеринара после запроса владельца.
+  Payment Service проверяет результат оплаты; возврат браузера оплату не подтверждает.
+  Статусы бронирования меняет Booking Service по правилам State Machine.
+  Автоматическое истечение срока оплаты описывается на диаграмме состояний.
+  Consul, JWT и базы данных — внутренние механизмы, а не акторы этой модели.
+endlegend
 @enduml
