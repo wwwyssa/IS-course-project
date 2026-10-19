@@ -1,115 +1,98 @@
 @startuml
-title Диаграмма развёртывания и артефактов ИС «Санаторий для животных» (Микросервисы)
-left to right direction
+title ИС «Санаторий для животных» — развёртывание
+top to bottom direction
 skinparam shadowing false
 skinparam defaultFontName Arial
+skinparam defaultFontSize 14
 skinparam nodeStyle rectangle
+skinparam packageStyle rectangle
+skinparam nodesep 40
+skinparam ranksep 55
+skinparam ArrowColor #526175
+skinparam nodeBackgroundColor #F5F7FA
+skinparam artifactBackgroundColor #FFFFFF
+skinparam databaseBackgroundColor #EAF2F8
+hide stereotype
 
-node "Устройство пользователя" as client <<device>> {
+node "Устройство пользователя" as client <<device>> #E8F4ED {
   node "Веб-браузер" as browser <<executionEnvironment>> {
-    artifact "Клиентское приложение React" as frontend <<artifact>>
+    artifact "React SPA" as frontend
   }
 }
 
-node "Сервер" as helios <<device>> {
-  
-  node "Веб-сервер" as nginx <<executionEnvironment>> {
-    artifact "Статические файлы React SPA" as staticFiles <<artifact>>
+node "Сервер приложения" as helios <<device>> {
+  node "Веб-сервер\nСтатика и маршрутизация API" as nginx <<executionEnvironment>> #E8F4ED {
+    artifact "Сборка React" as staticFiles
   }
 
-  node "JVM — Auth & User Service" as authNode <<executionEnvironment>> {
-    artifact "auth-service.jar" as authJar <<artifact>>
-  }
-  node "JVM — Booking Service" as bookingNode <<executionEnvironment>> {
-    artifact "booking-service.jar" as bookingJar <<artifact>>
-  }
-  node "JVM — Payment Service" as paymentNode <<executionEnvironment>> {
-    artifact "payment-service.jar" as paymentJar <<artifact>>
-  }
-  node "JVM — Medical Service" as medicalNode <<executionEnvironment>> {
-    artifact "medical-service.jar" as medicalJar <<artifact>>
-  }
-
-  node "PostgreSQL DBMS" as dbNode <<executionEnvironment>> {
-    database "auth_db" as dbAuth
-    database "booking_db" as dbBooking
-    database "payment_db" as dbPayment
-    database "medical_db" as dbMedical
+  package "Микросервисы · отдельные Java-процессы" as services {
+    together {
+      node "JVM · Auth Service" as authNode <<executionEnvironment>> {
+        artifact "auth-service.jar" as authJar
+      }
+      node "JVM · Booking Service" as bookingNode <<executionEnvironment>> {
+        artifact "booking-service.jar\nвключая State Machine" as bookingJar #FFF3D6
+      }
+      node "JVM · Payment Service" as paymentNode <<executionEnvironment>> {
+        artifact "payment-service.jar" as paymentJar
+      }
+      node "JVM · Medical Service" as medicalNode <<executionEnvironment>> {
+        artifact "medical-service.jar" as medicalJar
+      }
+    }
   }
 
-  note bottom of dbNode
-    Один экземпляр PostgreSQL, четыре отдельные БД.
-    У каждого сервиса своя учётная запись
-    с доступом только к его БД.
-    Между базами нет внешних ключей.
-  end note
-
-  folder "Каталог файлов на диске сервера\nПример: /data/sanatorium" as storage {
-    artifact "Фото- и видеоотчёты\nМедицинские документы" as files <<artifact>>
+  node "PostgreSQL · один экземпляр" as dbNode <<executionEnvironment>> #EAF2F8 {
+    together {
+      database "auth_db" as dbAuth
+      database "booking_db" as dbBooking
+      database "payment_db" as dbPayment
+      database "medical_db" as dbMedical
+    }
   }
 
-  node "Consul Agent (server)" as consul <<executionEnvironment>>
-
-  authNode -- consul : HTTP API\nРегистрация
-  bookingNode -- consul : HTTP API\nРегистрация и поиск
-  medicalNode -- consul : HTTP API\nРегистрация
-  paymentNode -- consul : HTTP API\nРегистрация
+  folder "Каталог на диске\n/data/sanatorium" as storage #EAF2F8 {
+    artifact "Фото, видео и документы" as files
+  }
+  node "Consul Agent (server)\nРеестр сервисов" as consul <<executionEnvironment>> #EAF2F8
 }
 
-node "Инфраструктура платёжного провайдера" as paymentHost <<device>> {
-  node "Платёжный провайдер\nAPI и платёжная страница" as paymentGateway <<executionEnvironment>>
+package "Внешняя инфраструктура" as external {
+  node "Telegram" as telegramHost <<external>> #F0EAF8 {
+    node "Telegram Login\nOpenID Connect" as telegramLogin <<executionEnvironment>>
+  }
+  node "Платёжный провайдер" as paymentHost <<external>> #F0EAF8 {
+    node "API и платёжная страница" as paymentGateway <<executionEnvironment>>
+  }
 }
 
-node "Инфраструктура Telegram" as telegramHost <<device>> {
-  node "Telegram Login\nOpenID Connect" as telegramLogin <<executionEnvironment>>
-}
+browser -down-> nginx : HTTP · SPA и API
+nginx -down-> authNode : HTTP
+nginx -down-> bookingNode : HTTP
+nginx -down-> paymentNode : HTTP
+nginx -down-> medicalNode : HTTP
 
-' Авторизация через Telegram
-browser -- telegramLogin : HTTPS\nПодтверждение входа
-authNode -- telegramLogin : HTTPS / OpenID Connect\nОбмен кода на токены, получение JWKS
+bookingNode -right-> paymentNode : REST · платёж / статус
+paymentNode ..> bookingNode : REST · результат
 
-note bottom of telegramHost
-  Auth Service проверяет ответ Telegram,
-  и выдаёт JWT системы санатория.
-end note
+authNode -down-> dbAuth : JDBC / TCP
+bookingNode -down-> dbBooking : JDBC / TCP
+paymentNode -down-> dbPayment : JDBC / TCP
+medicalNode -down-> dbMedical : JDBC / TCP
+medicalNode --> storage : Файловый ввод-вывод
 
-' Связи клиента с Nginx
-browser -- nginx : HTTP \n
+' Общая связь заменяет четыре повторяющиеся линии регистрации.
+services ..> consul : HTTP API\nРегистрация и поиск
 
-' Проксирование запросов от Nginx к микросервисам
-nginx -- authNode : HTTP
-nginx -- bookingNode : HTTP
-nginx -- paymentNode : HTTP
-nginx -- medicalNode : HTTP
+authNode --> telegramLogin : HTTPS / OIDC
+paymentNode --> paymentGateway : HTTPS API
+paymentGateway ..> nginx : HTTPS webhook
 
-' Межсервисное взаимодействие (REST / Feign)
-bookingNode ..> paymentNode : REST / Feign Client\n(Создание платежа для брони)
-paymentNode ..> bookingNode : REST\nПодтверждённый результат оплаты
-
-' Связи микросервисов с их базами данных
-authJar -- dbAuth : JDBC / TCP
-bookingJar -- dbBooking : JDBC / TCP
-paymentJar -- dbPayment : JDBC / TCP
-medicalJar -- dbMedical : JDBC / TCP\nДанные медицины, пути и метаданные файлов
-
-' Файловое хранилище
-medicalJar ..> files : Чтение и запись файлов
-
-
-note bottom of storage
-  Содержимое файлов хранится на диске.
-  В medical_db — ID, относительный путь, тип
-  и связь файла с животным или отчётом.
-  Загрузка и просмотр — через Medical Service
-end note
-
-' Взаимодействие с платежным шлюзом
-paymentNode --> paymentGateway : HTTPS API\nСоздание платежа и проверка статуса
-paymentGateway --> nginx : HTTPS webhook\nДалее в Payment Service
-browser -- paymentGateway : HTTPS\nОткрытие платёжной страницы по ссылке
-
-
-
-
+' Фиксация порядка колонок и уровней без видимых линий.
+authNode -[hidden]right-> bookingNode
+paymentNode -[hidden]right-> medicalNode
+dbAuth -[hidden]right-> dbBooking
+dbBooking -[hidden]right-> dbPayment
+dbPayment -[hidden]right-> dbMedical
+dbNode -[hidden]down-> external
 @enduml
-
