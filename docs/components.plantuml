@@ -15,8 +15,9 @@ skinparam databaseBackgroundColor #EAF2F8
 skinparam NoteBackgroundColor #FFFBEA
 hide stereotype
 
-component "React\nИнтерфейс пользователя" as frontend #E8F4ED
-component "Веб-сервер\n nginx" as webServer #E8F4ED
+component "Браузер с React\nИнтерфейс пользователя" as frontend #E8F4ED
+component "API Gateway\nSpring Cloud Gateway\nHTTPS · React SPA · маршрутизация API" as gateway #E8F4ED
+
 
 package "Микросервисы · Spring Boot" as backend {
   together {
@@ -45,11 +46,11 @@ package "Внешние системы" as external {
 }
 component "Consul\nРеестр сервисов" as consul #EAF2F8
 
-frontend -down-> webServer : API
-webServer -down-> authService : REST
-webServer -down-> bookingService : REST
-webServer -down-> paymentService : REST
-webServer -down-> medicalService : REST
+frontend -down-> gateway : HTTPS\nReact SPA и API
+gateway -down-> authService : HTTP · /api/auth/
+gateway -down-> bookingService : HTTP · /api/bookings/
+gateway -down-> paymentService : HTTP · /api/payments/
+gateway -down-> medicalService : HTTP · /api/medical/
 
 bookingService -right-> paymentService : Создать платёж / запросить статус
 paymentService ..> bookingService : Результат оплаты
@@ -62,11 +63,11 @@ medicalService --> storage : S3 API / HTTP\nЗагрузка и получени
 
 authService --> telegram : OIDC / HTTPS
 paymentService --> externalPayment : HTTPS API
-externalPayment ..> webServer : HTTPS webhook
+externalPayment ..> gateway : HTTPS webhook\n/api/payments/webhooks
+gateway ..> consul : HTTP API\nПоиск адресов сервисов
 backend ..> consul : Регистрация и обнаружение
 
 ' Невидимые связи фиксируют порядок колонок и уровней.
-frontend -[hidden]right-> telegram
 authService -[hidden]right-> bookingService
 paymentService -[hidden]right-> medicalService
 dbAuth -[hidden]right-> dbBooking

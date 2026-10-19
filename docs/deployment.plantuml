@@ -21,7 +21,10 @@ node "Устройство пользователя" as client <<device>> #E8F4E
 }
 
 node "Сервер приложения" as helios <<device>> {
-  node "Веб-сервер\nnginx" as nginx <<executionEnvironment>> #E8F4ED 
+  node "JVM · API Gateway" as gatewayNode <<executionEnvironment>> #E8F4ED {
+    artifact "gateway.jar\nSpring Cloud Gateway" as gatewayJar
+    artifact "React build\nindex.html, JS, CSS" as reactBuild
+  }
 
   package "Микросервисы · отдельные Java-процессы" as services {
     together {
@@ -64,11 +67,11 @@ package "Внешняя инфраструктура" as external {
   }
 }
 
-browser -down-> nginx : HTTP · SPA и API
-nginx -down-> authNode : HTTP
-nginx -down-> bookingNode : HTTP
-nginx -down-> paymentNode : HTTP
-nginx -down-> medicalNode : HTTP
+browser -down-> gatewayNode : HTTPS · React SPA и API
+gatewayNode -down-> authNode : HTTP · /api/auth/
+gatewayNode -down-> bookingNode : HTTP · /api/bookings/
+gatewayNode -down-> paymentNode : HTTP · /api/payments/
+gatewayNode -down-> medicalNode : HTTP · /api/medical/
 
 bookingNode -right-> paymentNode : REST · платёж / статус
 paymentNode ..> bookingNode : REST · результат
@@ -81,10 +84,11 @@ medicalNode --> storage : S3 API / HTTP\nЗагрузка и получение 
 
 ' Общая связь заменяет четыре повторяющиеся линии регистрации.
 services ..> consul : HTTP API\nРегистрация и поиск
+gatewayNode ..> consul : HTTP API\nПоиск адресов сервисов
 
 authNode --> telegramLogin : HTTPS / OIDC
 paymentNode --> paymentGateway : HTTPS API
-paymentGateway ..> nginx : HTTPS webhook
+paymentGateway ..> gatewayNode : HTTPS webhook\n/api/payments/webhooks
 
 ' Фиксация порядка колонок и уровней без видимых линий.
 authNode -[hidden]right-> bookingNode

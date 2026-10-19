@@ -1,6 +1,7 @@
 @startuml
 title ИС «Санаторий для животных» — модель прецедентов
 left to right direction
+scale max 1600*3400
 skinparam packageStyle rectangle
 skinparam nodesep 35
 skinparam ranksep 150
@@ -170,6 +171,7 @@ legend bottom left
   Payment Service проверяет результат оплаты; возврат браузера оплату не подтверждает.
   Статусы бронирования меняет Booking Service по правилам State Machine.
   Автоматическое истечение срока оплаты описывается на диаграмме состояний.
-  Consul, JWT и базы данных — внутренние механизмы, а не акторы этой модели.
+  API Gateway — единая точка входа; он отдаёт React SPA и маршрутизирует API-запросы.
+  API Gateway, Consul, JWT и базы данных — внутренние механизмы, а не акторы этой модели.
 endlegend
 @enduml

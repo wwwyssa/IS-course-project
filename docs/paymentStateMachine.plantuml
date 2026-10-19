@@ -1,0 +1,45 @@
+@startuml
+title Машина состояний платёжной попытки
+hide empty description
+skinparam shadowing false
+
+state "Создаётся у провайдера" as CREATING
+state "Ожидает результата оплаты" as PENDING
+state "Запрошена отмена" as CANCEL_REQUESTED
+state "Успешно оплачен" as SUCCEEDED
+state "Окончательная ошибка" as FAILED
+state "Отменён" as CANCELLED
+
+[*] --> CREATING : Запрос от Booking Service\n/ сохранить попытку, bookingId,\nсумму, валюту и idempotencyKey
+
+CREATING --> PENDING : Провайдер создал платёж\n/ сохранить providerPaymentId\nи платёжную ссылку
+
+CREATING --> CREATING : Таймаут или потеря ответа\n/ выяснить результат создания,\nповторять создание с тем же ключом
+
+CREATING --> FAILED : Получен однозначный отказ создания\n/ сохранить причину,\nуведомить Booking Service
+
+CREATING --> SUCCEEDED : Проверенное подтверждение оплаты\nпришло раньше ответа создания\n/ сохранить результат,\nуведомить Booking Service
+
+CREATING --> CANCEL_REQUESTED : Бронь отменена или срок истёк\n/ выяснить результат создания\nи запросить отмену платежа
+
+PENDING --> SUCCEEDED : Провайдер подтвердил успешную оплату\n/ сохранить результат,\nуведомить Booking Service
+
+PENDING --> FAILED : Провайдер подтвердил\nокончательную неудачу оплаты\n/ сохранить причину,\nуведомить Booking Service
+
+PENDING --> CANCEL_REQUESTED : Бронь отменена или срок истёк\n/ запросить отмену у провайдера
+
+PENDING --> CANCELLED : Провайдер подтвердил отмену\n/ уведомить Booking Service
+
+PENDING --> PENDING : Результат долго не поступает\n/ запросить статус через API провайдера
+
+CANCEL_REQUESTED --> CANCELLED : Подтверждена отмена\nили подтверждено отсутствие платежа\n/ уведомить Booking Service
+
+CANCEL_REQUESTED --> SUCCEEDED : Провайдер подтвердил оплату,\nкоторая успела пройти до отмены\n/ уведомить Booking Service
+
+CANCEL_REQUESTED --> CANCEL_REQUESTED : Отмена не подтверждена\nили произошла сетевая ошибка\n/ повторить сверку и при необходимости отмену
+
+SUCCEEDED --> [*]
+FAILED --> [*]
+CANCELLED --> [*]
+
+@enduml

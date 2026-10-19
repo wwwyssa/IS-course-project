@@ -1,0 +1,42 @@
+@startuml
+title Машина состояний бронирования
+hide empty description
+skinparam shadowing false
+
+state "Ожидает оплаты" as AWAITING_PAYMENT
+state "Подтверждено" as CONFIRMED
+state "Животное заселено" as CHECKED_IN
+state "Проживание завершено" as COMPLETED
+state "Отменено" as CANCELLED
+state "Срок оплаты истёк" as EXPIRED
+
+[*] --> AWAITING_PAYMENT : Создать бронирование\n[питомец доступен и номер свободен]\n/ сохранить сумму и expiresAt,\nвременно занять место
+
+AWAITING_PAYMENT --> CONFIRMED : PaymentSucceeded\n[платёж относится к брони,\nсумма и валюта совпадают,\nnow < expiresAt]\n/ сохранить подтверждение
+
+AWAITING_PAYMENT --> AWAITING_PAYMENT : Попытка оплаты завершилась неуспешно\n[now < expiresAt]\n/ разрешить новую попытку оплаты
+
+AWAITING_PAYMENT --> CANCELLED : Пользователь отменил бронирование\n/ освободить место,\nзапросить отмену незавершённых платежей
+
+AWAITING_PAYMENT --> EXPIRED : Проверка срока оплаты\n[now >= expiresAt]\n/ освободить место,\nзапросить отмену незавершённых платежей
+
+CONFIRMED --> CHECKED_IN : Сотрудник оформил заселение\n[наступила дата заезда]
+
+CONFIRMED --> CANCELLED : Запрошена отмена\n[отмена разрешена правилами]\n/ освободить место,\nзапросить возврат по правилам отмены
+
+CHECKED_IN --> COMPLETED : Сотрудник завершил проживание\n/ освободить место
+
+COMPLETED --> [*]
+CANCELLED --> [*]
+EXPIRED --> [*]
+
+note right of AWAITING_PAYMENT
+  Ошибка одной попытки оплаты
+  не отменяет бронирование.
+
+  Новая попытка разрешена,
+  пока бронирование ожидает оплаты
+  и срок оплаты не истёк.
+end note
+
+@enduml
