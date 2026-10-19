@@ -1,57 +1,77 @@
-﻿@startuml
-title Диаграмма компонентов ИС «Санаторий для животных»
+@startuml
+title ИС «Санаторий для животных» — диаграмма компонентов
 top to bottom direction
 skinparam shadowing false
 skinparam defaultFontName Arial
+skinparam defaultFontSize 14
 skinparam componentStyle uml2
 skinparam packageStyle rectangle
-skinparam nodesep 40
-skinparam ranksep 50
+skinparam nodesep 45
+skinparam ranksep 55
+skinparam ArrowColor #526175
+skinparam packageBackgroundColor #F5F7FA
+skinparam componentBackgroundColor #FFFFFF
+skinparam databaseBackgroundColor #EAF2F8
+skinparam NoteBackgroundColor #FFFBEA
+hide stereotype
 
-package "Клиентское приложение (React)" {
-  component "Интерфейс пользователя\nи API-клиент" as frontend
-}
+component "React\nИнтерфейс пользователя" as frontend #E8F4ED
+component "Веб-сервер\nМаршрутизация API и выдача React" as webServer #E8F4ED
 
-package "Серверное приложение (Java, Spring Boot)" {
-  package "Входные адаптеры" {
-    component "Фильтр безопасности" as security
-    component "REST-контроллеры" as controllers
-    security ..> controllers : Передача запроса
-  }
-
-  package "Прикладное ядро" {
-    interface "Интерфейсы сценариев" as inbound
-    component "Прикладные сервисы\nПрофили и животные, бронирование,\nпитание и расписание, уход и отчёты,\nчат и уведомления, оплата" as services
-    component "Доменная модель\nСущности и бизнес-правила" as domain
-    interface "Репозитории" as dataPort
-    interface "Хранилище файлов" as filePort
-    interface "Платёжный шлюз" as paymentPort
-
-    services ..|> inbound
-    services ..> domain
-    services ..> dataPort
-    services ..> filePort
-    services ..> paymentPort
-  }
-
-  package "Выходные адаптеры" {
-    component "Адаптер базы данных" as persistence
-    component "Адаптер файловой системы" as fileAdapter
-    component "Клиент платёжного API" as paymentAdapter
+package "Микросервисы · Spring Boot" as backend {
+  together {
+    component "Auth Service\nВход и пользователи" as authService
+    component "Booking Service\nБронирования" as bookingService {
+      component "State Machine\nПереходы статусов" as bookingStateMachine #FFF3D6
+    }
+    component "Payment Service\nПлатежи и статусы" as paymentService
+    component "Medical Service\nМедицина и отчёты" as medicalService
   }
 }
 
-database "PostgreSQL" as db
-component "Файловое хранилище" as storage
-component "Платёжный сервис" as payment <<external>>
+package "Хранение данных" as data {
+  together {
+    database "auth_db" as dbAuth
+    database "booking_db" as dbBooking
+    database "payment_db" as dbPayment
+    database "medical_db" as dbMedical
+  }
+  folder "Каталог файлов\nФото, видео, документы" as storage
+}
 
-frontend ..> security : HTTP / JSON
-controllers ..> inbound
-persistence ..|> dataPort
-fileAdapter ..|> filePort
-paymentAdapter ..|> paymentPort
-persistence ..> db : JDBC / TCP
-fileAdapter ..> storage : Чтение и запись
-paymentAdapter ..> payment : HTTPS API
-frontend ..> payment : HTTPS\nПлатёжная страница
+package "Внешние системы" as external {
+  component "Telegram Login\nOpenID Connect" as telegram #F0EAF8
+  component "Платёжный провайдер\nAPI и платёжная страница" as externalPayment #F0EAF8
+}
+component "Consul\nРеестр сервисов" as consul #EAF2F8
+
+frontend -down-> webServer : API
+webServer -down-> authService : REST
+webServer -down-> bookingService : REST
+webServer -down-> paymentService : REST
+webServer -down-> medicalService : REST
+
+bookingService -right-> paymentService : Создать платёж / запросить статус
+paymentService ..> bookingService : Результат оплаты
+
+authService -down-> dbAuth : JDBC
+bookingService -down-> dbBooking : JDBC
+paymentService -down-> dbPayment : JDBC
+medicalService -down-> dbMedical : JDBC
+medicalService --> storage : Файловый ввод-вывод
+
+authService --> telegram : OIDC / HTTPS
+paymentService --> externalPayment : HTTPS API
+externalPayment ..> webServer : HTTPS webhook
+backend ..> consul : Регистрация и обнаружение
+
+' Невидимые связи фиксируют порядок колонок и уровней.
+frontend -[hidden]right-> telegram
+authService -[hidden]right-> bookingService
+paymentService -[hidden]right-> medicalService
+dbAuth -[hidden]right-> dbBooking
+dbBooking -[hidden]right-> dbPayment
+dbPayment -[hidden]right-> dbMedical
+data -[hidden]down-> external
+
 @enduml

@@ -1,5 +1,5 @@
 @startuml
-title Диаграмма развёртывания ИС «Санаторий для животных»
+title Диаграмма развёртывания и артефактов ИС «Санаторий для животных» (Микросервисы)
 left to right direction
 skinparam shadowing false
 skinparam defaultFontName Arial
@@ -7,32 +7,109 @@ skinparam nodeStyle rectangle
 
 node "Устройство пользователя" as client <<device>> {
   node "Веб-браузер" as browser <<executionEnvironment>> {
-    artifact "Клиентское приложение React" as frontend
+    artifact "Клиентское приложение React" as frontend <<artifact>>
   }
 }
 
-node "Сервер" as server <<device>> {
-  node "JVM" as jvm <<executionEnvironment>> {
-    node "Spring Boot\nВстроенный веб-сервер" as app <<executionEnvironment>> {
-      artifact "sanatorium.jar\n Spring Boot" as backend
-    }
-  }
-  folder "Файловое хранилище" as storage {
-    artifact "Фото- и видеоотчёты\nВетеринарные документы" as files
+node "Сервер" as helios <<device>> {
+  
+  node "Веб-сервер" as nginx <<executionEnvironment>> {
+    artifact "Статические файлы React SPA" as staticFiles <<artifact>>
   }
 
-  database "База данных санатория" as db
-  
+  node "JVM — Auth & User Service" as authNode <<executionEnvironment>> {
+    artifact "auth-service.jar" as authJar <<artifact>>
+  }
+  node "JVM — Booking Service" as bookingNode <<executionEnvironment>> {
+    artifact "booking-service.jar" as bookingJar <<artifact>>
+  }
+  node "JVM — Payment Service" as paymentNode <<executionEnvironment>> {
+    artifact "payment-service.jar" as paymentJar <<artifact>>
+  }
+  node "JVM — Medical Service" as medicalNode <<executionEnvironment>> {
+    artifact "medical-service.jar" as medicalJar <<artifact>>
+  }
+
+  node "PostgreSQL DBMS" as dbNode <<executionEnvironment>> {
+    database "auth_db" as dbAuth
+    database "booking_db" as dbBooking
+    database "payment_db" as dbPayment
+    database "medical_db" as dbMedical
+  }
+
+  note bottom of dbNode
+    Один экземпляр PostgreSQL, четыре отдельные БД.
+    У каждого сервиса своя учётная запись
+    с доступом только к его БД.
+    Между базами нет внешних ключей.
+  end note
+
+  folder "Каталог файлов на диске сервера\nПример: /data/sanatorium" as storage {
+    artifact "Фото- и видеоотчёты\nМедицинские документы" as files <<artifact>>
+  }
+
+  node "Consul Agent (server)" as consul <<executionEnvironment>>
+
+  authNode -- consul : HTTP API\nРегистрация
+  bookingNode -- consul : HTTP API\nРегистрация и поиск
+  medicalNode -- consul : HTTP API\nРегистрация
+  paymentNode -- consul : HTTP API\nРегистрация
 }
 
 node "Инфраструктура платёжного провайдера" as paymentHost <<device>> {
-  node "Платёжный сервис" as payment <<executionEnvironment>>
+  node "Платёжный провайдер\nAPI и платёжная страница" as paymentGateway <<executionEnvironment>>
 }
 
-browser -- app : HTTP
-app -- db : JDBC / TCP\nЧтение и запись данных
-backend ..> files : Чтение и запись файлов
-app -- payment : HTTPS API\nСоздание платежей и проверка статуса
-browser -- payment : HTTPS\nПлатёжная страница провайдера
+node "Инфраструктура Telegram" as telegramHost <<device>> {
+  node "Telegram Login\nOpenID Connect" as telegramLogin <<executionEnvironment>>
+}
+
+' Авторизация через Telegram
+browser -- telegramLogin : HTTPS\nПодтверждение входа
+authNode -- telegramLogin : HTTPS / OpenID Connect\nОбмен кода на токены, получение JWKS
+
+note bottom of telegramHost
+  Auth Service проверяет ответ Telegram,
+  и выдаёт JWT системы санатория.
+end note
+
+' Связи клиента с Nginx
+browser -- nginx : HTTP \n
+
+' Проксирование запросов от Nginx к микросервисам
+nginx -- authNode : HTTP
+nginx -- bookingNode : HTTP
+nginx -- paymentNode : HTTP
+nginx -- medicalNode : HTTP
+
+' Межсервисное взаимодействие (REST / Feign)
+bookingNode ..> paymentNode : REST / Feign Client\n(Создание платежа для брони)
+paymentNode ..> bookingNode : REST\nПодтверждённый результат оплаты
+
+' Связи микросервисов с их базами данных
+authJar -- dbAuth : JDBC / TCP
+bookingJar -- dbBooking : JDBC / TCP
+paymentJar -- dbPayment : JDBC / TCP
+medicalJar -- dbMedical : JDBC / TCP\nДанные медицины, пути и метаданные файлов
+
+' Файловое хранилище
+medicalJar ..> files : Чтение и запись файлов
+
+
+note bottom of storage
+  Содержимое файлов хранится на диске.
+  В medical_db — ID, относительный путь, тип
+  и связь файла с животным или отчётом.
+  Загрузка и просмотр — через Medical Service
+end note
+
+' Взаимодействие с платежным шлюзом
+paymentNode --> paymentGateway : HTTPS API\nСоздание платежа и проверка статуса
+paymentGateway --> nginx : HTTPS webhook\nДалее в Payment Service
+browser -- paymentGateway : HTTPS\nОткрытие платёжной страницы по ссылке
+
+
+
 
 @enduml
+
